@@ -5,8 +5,11 @@ const debug = require('debug-levels')('TfModel')
 
 import * as path from 'path'
 
-const N_CLASSES = 2;
-
+// total different categories
+const N_CLASSES = 3;
+const tags = [
+  'BOOK', 'RUN', 'PLAY'
+]
 
 class TfModel {
   modelPath: string
@@ -52,20 +55,58 @@ class TfModel {
     }
     const xTrain = await this.encodeData(utterances);
 
-    const yTrain = tf.tensor2d(
-      utterances.map(t => [t.icon === "BOOK" ? 1 : 0, t.icon === "RUN" ? 1 : 0])
+    // TODO - make this more dynamic. just testing for now with 3 labels
+    const labels = (
+      utterances.map(t => {
+        // const yt = [t.icon === "BOOK" ? 1 : 0, t.icon === "RUN" ? 1 : 0]
+        let yt
+        switch (t.icon) {
+          case 'PLAY':
+            yt = [1, 0, 0]
+            break
+          case 'RUN':
+            yt = [0, 1, 0]
+            break
+          case 'BOOK':
+            yt = [0, 0, 1]
+            break
+        }
+        debug.log(t, yt)
+        return yt
+      })
     );
-    debug.log('yTrain', yTrain)
-
+    const yTrain = tf.tensor2d(labels)
+    const inputShape = [xTrain.shape[1]]
     const model = tf.sequential();
+
+    debug.log('labels', labels)
+    debug.log('yTrain', {
+      xTrain, yTrain, inputShape
+    })
+    // debug.log('xTrain', xTrain)
 
     model.add(
       tf.layers.dense({
-        inputShape: [xTrain.shape[1]],
+        inputShape: inputShape,
         activation: "softmax",
         units: N_CLASSES
       })
     );
+
+    // model.add(
+    //   tf.layers.dense({
+    //     inputShape: [xTrain.shape[1]],
+    //     activation: "softmax",
+    //     units: N_CLASSES
+    //   })
+    // );
+    // model.add(
+    //   tf.layers.dense({
+    //     inputShape: [xTrain.shape[1]],
+    //     activation: "softmax",
+    //     units: N_CLASSES
+    //   })
+    // );
 
     model.compile({
       loss: "categoricalCrossentropy",
@@ -97,23 +138,33 @@ class TfModel {
     return model;
   }
 
-  async predict(input: string, threshold: number) {
+  async predict(input: string, _threshold: number = 0.5) {
     if (!input.trim().includes(" ")) {
       return null;
     }
 
     const xPredict = await this.encodeData([{ text: input }])
 
-    const predictions = await this.model.predict(xPredict).data();
-    debug(input, predictions)
+    const tensor = await this.model.predict(xPredict);
+    const pdata: number[] = await tensor.data()
 
-    if (predictions[0] > threshold) {
-      return "BOOK";
-    } else if (predictions[1] > threshold) {
-      return "RUN";
-    } else {
-      return null;
-    }
+    const pcts = pdata.map(p => Math.round(p * 100))
+
+    const confidence = Math.max(...pdata)
+    const tagId = pdata.indexOf(confidence)
+    const tagName = tags[tagId]
+    console.table({
+      input, tagId, tagName, confidence, ...pcts
+    })
+    return tagName
+
+    // if (predictions[0] > threshold) {
+    //   return "BOOK";
+    // } else if (predictions[1] > threshold) {
+    //   return "RUN";
+    // } else {
+    //   return null;
+    // }
   };
 
 }
