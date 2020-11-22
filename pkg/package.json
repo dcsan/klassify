@@ -1,0 +1,28 @@
+{
+  "name": "@dcsan/klassify",
+  "version": "0.0.4",
+  "description": "javascript classifier options",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "test": "ts-node src/test.ts",
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dcsan/klassify.git"
+  },
+  "author": "DCsan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dcsan/klassify/issues"
+  },
+  "homepage": "https://github.com/dcsan/klassify#readme",
+  "keywords": [
+    "classifier"
+  ],
+  "devDependencies": {
+    "typescript": "^4.1.2"
+  }
+}
