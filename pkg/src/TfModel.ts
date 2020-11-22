@@ -2,14 +2,11 @@
 import * as tf from "@tensorflow/tfjs-node";
 import * as sentenceEncoder from "@tensorflow-models/universal-sentence-encoder";
 const debug = require('debug-levels')('TfModel')
+import * as _ from 'lodash'
 
 import * as path from 'path'
 
 // total different categories
-const N_CLASSES = 3;
-const tags = [
-  'BOOK', 'RUN', 'PLAY'
-]
 
 class TfModel {
   modelPath: string
@@ -17,6 +14,7 @@ class TfModel {
   encoder: any
   model: any
   loaded: boolean = false
+  uniqueTags: string[] = []
 
   constructor(modelName = 'tfModel') {
     this.modelPath = path.join(__dirname, 'data', 'modelCache', modelName)
@@ -38,6 +36,10 @@ class TfModel {
   // force = ignore cached model
   async trainModel(utterances: any, useCache: boolean = false) {
     await this.load()
+    // TODO - make this more dynamic based on position in tags
+    // just testing for now with 3 labels
+    const allTags = utterances.map(t => t.tag)
+    this.uniqueTags = _.uniq(allTags)
 
     if (useCache) {
       try {
@@ -55,41 +57,32 @@ class TfModel {
     }
     const xTrain = await this.encodeData(utterances);
 
-    // TODO - make this more dynamic. just testing for now with 3 labels
+    // returns an array like [0,0,1,0] for each entry
     const labels = (
-      utterances.map(t => {
-        // const yt = [t.icon === "BOOK" ? 1 : 0, t.icon === "RUN" ? 1 : 0]
-        let yt
-        switch (t.icon) {
-          case 'PLAY':
-            yt = [1, 0, 0]
-            break
-          case 'RUN':
-            yt = [0, 1, 0]
-            break
-          case 'BOOK':
-            yt = [0, 0, 1]
-            break
-        }
-        debug.log(t, yt)
-        return yt
+      utterances.map(utt => {
+        const pos = this.uniqueTags.indexOf(utt.tag)
+        const mat = new Array(this.uniqueTags.length).fill(0)
+        mat[pos] = 1
+        return mat
       })
     );
     const yTrain = tf.tensor2d(labels)
     const inputShape = [xTrain.shape[1]]
     const model = tf.sequential();
 
-    debug.log('labels', labels)
-    debug.log('yTrain', {
-      xTrain, yTrain, inputShape
-    })
+    // debug.log('labels', labels)
+    // debug.log('yTrain', {
+    //   tags: this.uniqueTags,
+    //   labels,
+    //   xTrain, yTrain, inputShape
+    // })
     // debug.log('xTrain', xTrain)
 
     model.add(
       tf.layers.dense({
         inputShape: inputShape,
         activation: "softmax",
-        units: N_CLASSES
+        units: this.uniqueTags.length // number of classes for classifier
       })
     );
 
@@ -139,32 +132,44 @@ class TfModel {
   }
 
   async predict(input: string, _threshold: number = 0.5) {
-    if (!input.trim().includes(" ")) {
-      return null;
+    input = input.trim()
+    if (!input) {
+      debug.warn('empty input to predictor')
+      return
     }
-
     const xPredict = await this.encodeData([{ text: input }])
-
     const tensor = await this.model.predict(xPredict);
     const pdata: number[] = await tensor.data()
 
-    const pcts = pdata.map(p => Math.round(p * 100))
-
+    // const pcts = pdata.map(p => Math.round(p * 100))
+    // find most confident item
     const confidence = Math.max(...pdata)
-    const tagId = pdata.indexOf(confidence)
-    const tagName = tags[tagId]
-    console.table({
-      input, tagId, tagName, confidence, ...pcts
-    })
-    return tagName
+    const tagIndex = pdata.indexOf(confidence)
+    const tag = this.uniqueTags[tagIndex]
 
-    // if (predictions[0] > threshold) {
-    //   return "BOOK";
-    // } else if (predictions[1] > threshold) {
-    //   return "RUN";
-    // } else {
-    //   return null;
-    // }
+    // debug.log('prediction', {
+    //   pdata,
+    //   confidence,
+    //   tagIndex,
+    //   tag
+    // })
+
+    // const vals = pcts.join(',')
+    const others: any = this.uniqueTags.map((tagName, index) => {
+      const confidence = pdata[index]
+      return [tagName, confidence]
+    })
+
+    const result = {
+      input,
+      tag,
+      confidence,
+      others
+    }
+
+    // debug.log('result', result)
+    return result
+
   };
 
 }

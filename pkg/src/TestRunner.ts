@@ -1,17 +1,12 @@
-// import { strict as assert } from 'assert';
-import { Klassify } from './Klassify'
 import { TfModel } from "./TfModel";
+import { readCsvFile } from './FileUtils'
 
-// const kls = new Klassify()
-// const result = kls.hello('alpha')
-// // console.log('result:', result)
-// console.assert(result === 'hello alpha', 'kls.hello')
-// assert.equal(result, 'hello axpal')
+const debug = require('debug-levels')('TestRunner')
 
-// let opts: any = {}
+// import { Klassify } from './Klassify'
 
-const useModelCache = false
-// const useModelCache = true
+// const useModelCache = false
+const useModelCache = true
 
 const TestRunner = {
 
@@ -19,31 +14,25 @@ const TestRunner = {
     const testModel = new TfModel('test2')
     await testModel.load()
 
-    const bookData = require("./data/inputs/book.json");
-    const runData = require("./data/inputs/run.json");
-    const playData = require("./data/inputs/play.json");
+    const utterances = await readCsvFile('./data/inputs/train.csv')
+    // debug.log('utterances', utterances)
+    // @ts-ignore
+    utterances.map((utt: any) => {
+      console.log('utt', utt.tag, utt.text)
+    })
 
-    const utterances = [].concat(bookData, runData, playData);
     await testModel.trainModel(utterances, useModelCache)
     await TestRunner.predict(testModel)
   },
 
   async predict(testModel) {
-    const inputs = [
-      'go to library',
-      'read about animals',
-      'get new passport',
-      'do more exercise',
-      'go to the gym',
-      'go to the club',
-      'dance your ass off',
-      'play games',
-      'play with friends',
-      'play games',
-    ]
-    inputs.map(async input => {
-      const result = await testModel.predict(input, 0.5)
-      console.log(input, result)
+    const testLines = await readCsvFile('./data/inputs/test.csv')
+    console.log('passed\tactual\texpect\tconfidence\t\ttext')
+    testLines.map(async line => {
+      const prediction = await testModel.predict(line.text.trim())
+      const passed = prediction.tag === line.tag ? '√' : 'x'
+      console.log(`${passed} \t${line.tag} \t${prediction.tag} \t${prediction.confidence}\t${line.text.trim()}`)
+      // console.log(prediction.others)
     })
   }
 
