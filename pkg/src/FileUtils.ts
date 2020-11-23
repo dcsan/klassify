@@ -19,4 +19,10 @@ const readCsvFile = (fp: string, basePath: string = __dirname): Promise<any[]> =
 
 }
 
-export { readCsvFile }
+const ensureDirectory = (dirPath) => {
+  if (fs.existsSync(dirPath)) { return }
+  // else
+  fs.mkdirSync(dirPath, { recursive: true })
+}
+
+export { readCsvFile, ensureDirectory }

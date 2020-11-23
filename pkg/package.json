@@ -1,6 +1,6 @@
 {
   "name": "@dcsan/klassify",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "javascript classifier options",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

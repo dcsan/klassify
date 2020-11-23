@@ -1,4 +1,4 @@
-import { TfModel } from "./TfModel";
+import { TfClassifier } from "./TfClassifier";
 import { readCsvFile } from './FileUtils'
 
 const debug = require('debug-levels')('TestRunner')
@@ -11,7 +11,7 @@ const useModelCache = true
 const TestRunner = {
 
   async run() {
-    const testModel = new TfModel('test2')
+    const testModel = new TfClassifier('test2')
     await testModel.load()
 
     const utterances = await readCsvFile('./data/inputs/train.csv')

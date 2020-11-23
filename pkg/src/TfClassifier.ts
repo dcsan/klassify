@@ -5,10 +5,10 @@ const debug = require('debug-levels')('TfModel')
 import * as _ from 'lodash'
 
 import * as path from 'path'
-
+import { ensureDirectory } from './FileUtils'
 // total different categories
 
-class TfModel {
+class TfClassifier {
   modelPath: string
   modelUrl: string
   encoder: any
@@ -17,7 +17,9 @@ class TfModel {
   uniqueTags: string[] = []
 
   constructor(modelName = 'tfModel') {
-    this.modelPath = path.join(__dirname, 'data', 'modelCache', modelName)
+    const modelDir = path.join(__dirname, 'data', 'modelCache')
+    ensureDirectory(modelDir)
+    this.modelPath = path.join(modelDir, modelName)
     this.modelUrl = `file://${this.modelPath}`
   }
 
@@ -131,7 +133,9 @@ class TfModel {
     return model;
   }
 
-  async predict(input: string, _threshold: number = 0.5) {
+  async predict(input: string,
+    opts: { maxHits: number } = { maxHits: 10 }): Promise<any> {
+    const maxHits = opts.maxHits || 10
     input = input.trim()
     if (!input) {
       debug.warn('empty input to predictor')
@@ -160,11 +164,15 @@ class TfModel {
       return [tagName, confidence]
     })
 
+    const sortedHits = others.sort((a, b) => {
+      return (a[1] < b[1] ? 1 : -1)
+    })
+
     const result = {
       input,
       tag,
       confidence,
-      others
+      others: sortedHits.slice(0, maxHits)
     }
 
     // debug.log('result', result)
@@ -174,4 +182,4 @@ class TfModel {
 
 }
 
-export { TfModel };
+export { TfClassifier };

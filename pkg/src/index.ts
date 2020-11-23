@@ -1,3 +1,4 @@
 // export * from "./Klassify";
 
-export { Klassify } from './Klassify'
+export { TfClassifier } from './TfClassifier'
+export { readCsvFile } from './FileUtils'
