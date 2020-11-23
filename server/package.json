@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "DEBUG=* DEBUG_LEVEL=info ts-node src/index.ts",
-    "start": "DEBUG=* DEBUG_LEVEL=info ts-node src/Riddler.ts",
+    "start": "PORT=36010 DEBUG=* DEBUG_LEVEL=info ts-node src/Riddler.ts",
     "build": "tsc"
   },
   "keywords": [],
