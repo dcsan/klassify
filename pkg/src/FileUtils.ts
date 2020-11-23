@@ -7,8 +7,11 @@ const readCsvFile = (fp: string, basePath: string = __dirname): Promise<any[]> =
 
   return new Promise((resolve, reject) => {
     let lines: string[] = []
+    const opts = {
+      mapValues: ({ header, index, value }) => value.trim()
+    }
     fs.createReadStream(fullPath)
-      .pipe(csv())
+      .pipe(csv(opts))
       .on('data', (row) => {
         lines.push(row)
       })

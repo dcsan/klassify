@@ -10,7 +10,7 @@ const Riddler = {
     const testModel = new TfClassifier('riddles')
     await testModel.load()  // load the sentenceEncoder
 
-    let utterances = await readCsvFile('./data/logs/riddle-logs.csv', __dirname)
+    let utterances = await readCsvFile('./data/riddles/riddle-logs.csv', __dirname)
     // debug.log('utterances', utterances)
     // @ts-ignore
     // utterances.map((utt: any) => {

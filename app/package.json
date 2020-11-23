@@ -12,7 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dcsan/klassify": "file:../pkg",
+    "@dcsan/klassify": "0.0.7",
     "@types/lodash": "^4.14.165",
     "@types/node": "^14.14.9",
     "debug-levels": "^0.2.0",

@@ -3,10 +3,24 @@ import * as tf from "@tensorflow/tfjs-node";
 import * as sentenceEncoder from "@tensorflow-models/universal-sentence-encoder";
 const debug = require('debug-levels')('TfModel')
 import * as _ from 'lodash'
+import { readCsvFile } from './FileUtils'
 
 import * as path from 'path'
 import { ensureDirectory } from './FileUtils'
 // total different categories
+
+interface ITaggedInput {
+  text: string
+  tag: string
+}
+
+interface IClassification {
+  input: string
+  tag: string
+  confidence: number
+  found?: ITaggedInput
+  others: ITaggedInput[]
+}
 
 class TfClassifier {
   modelPath: string
@@ -15,6 +29,7 @@ class TfClassifier {
   model: any
   loaded: boolean = false
   uniqueTags: string[] = []
+  inputs?: ITaggedInput[]
 
   constructor(modelName = 'tfModel') {
     const modelDir = path.join(__dirname, 'data', 'modelCache')
@@ -23,7 +38,7 @@ class TfClassifier {
     this.modelUrl = `file://${this.modelPath}`
   }
 
-  async load() {
+  async loadEncoder() {
     if (this.loaded) return
     this.encoder = await sentenceEncoder.load()
     this.loaded = true
@@ -35,15 +50,27 @@ class TfClassifier {
     return embeddings;
   }
 
+  async loadCsvInputs(relPath, basePath = __dirname) {
+    this.inputs = await readCsvFile(relPath, basePath)
+  }
+
   // force = ignore cached model
-  async trainModel(utterances: any, useCache: boolean = false) {
-    await this.load()
-    // TODO - make this more dynamic based on position in tags
-    // just testing for now with 3 labels
-    const allTags = utterances.map(t => t.tag)
+  async trainModel(opts: {
+    inputs?: ITaggedInput[],
+    useCache: boolean
+  }) {
+
+    const inputs: ITaggedInput[] = opts.inputs || this.inputs!
+    if (!inputs) {
+      throw ('no inputs for trainModel')
+    }
+
+    await this.loadEncoder()
+
+    const allTags: string[] = inputs.map(t => t.tag)
     this.uniqueTags = _.uniq(allTags)
 
-    if (useCache) {
+    if (opts.useCache) {
       try {
         const modelFile = `${this.modelUrl}/model.json` // annoying TF glitch
         const loadedModel = await tf.loadLayersModel(
@@ -57,11 +84,11 @@ class TfClassifier {
         debug.log("Training new model");
       }
     }
-    const xTrain = await this.encodeData(utterances);
+    const xTrain = await this.encodeData(inputs);
 
     // returns an array like [0,0,1,0] for each entry
     const labels = (
-      utterances.map(utt => {
+      inputs.map((utt: ITaggedInput) => {
         const pos = this.uniqueTags.indexOf(utt.tag)
         const mat = new Array(this.uniqueTags.length).fill(0)
         mat[pos] = 1
@@ -133,8 +160,9 @@ class TfClassifier {
     return model;
   }
 
-  async predict(input: string,
-    opts: { maxHits: number } = { maxHits: 10 }): Promise<any> {
+  async classify(
+    input: string,
+    opts: { maxHits: number } = { maxHits: 10 }): Promise<IClassification | undefined> {
     const maxHits = opts.maxHits || 10
     input = input.trim()
     if (!input) {
@@ -168,14 +196,18 @@ class TfClassifier {
       return (a[1] < b[1] ? 1 : -1)
     })
 
-    const result = {
+    // original input item with any other fields
+    const found = this.inputs?.find(item => item.tag === tag)
+
+    const result: IClassification = {
       input,
+      found,
       tag,
       confidence,
       others: sortedHits.slice(0, maxHits)
     }
 
-    // debug.log('result', result)
+    debug.log('result', result)
     return result
 
   };
