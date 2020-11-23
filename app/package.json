@@ -5,14 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "DEBUG=* DEBUG_LEVEL=info ts-node src/index.ts",
-    "app": "DEBUG=* DEBUG_LEVEL=info ts-node src/Riddler.ts",
+    "start": "DEBUG=* DEBUG_LEVEL=info ts-node src/Riddler.ts",
     "build": "tsc"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@dcsan/klassify": "0.0.7",
+    "@dcsan/klassify": "file:../pkg",
     "@types/lodash": "^4.14.165",
     "@types/node": "^14.14.9",
     "debug-levels": "^0.2.0",

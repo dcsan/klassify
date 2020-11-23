@@ -1,38 +1,41 @@
-import { TfClassifier } from '@dcsan/klassify'
-import { readCsvFile } from '@dcsan/klassify'
+import { TfClassifier, ITaggedInput, IMatch } from '@dcsan/klassify'
 const debug = require('debug-levels')('Riddler')
 import * as _ from 'lodash'
 
-const useModelCache = true
+// const useModelCache = true
+const useModelCache = false   // force new model compile every time
+let testModel: TfClassifier
 
 const Riddler = {
   async init() {
-    const testModel = new TfClassifier('riddles')
-    await testModel.load()  // load the sentenceEncoder
+    testModel = new TfClassifier('riddles')
+    await testModel.loadEncoder()  // load the sentenceEncoder
 
-    let utterances = await readCsvFile('./data/riddles/riddle-logs.csv', __dirname)
-    // debug.log('utterances', utterances)
-    // @ts-ignore
-    // utterances.map((utt: any) => {
-    //   // console.log('utt', utt.tag, '\t', utt.text)
-    // })
-    utterances = utterances.filter(utt => utt.text && utt.tag) // remove empty items
-    console.table(utterances, ['tag', 'text'])
+    await testModel.loadCsvInputs('./data/riddles/riddle-logs.csv', __dirname)
+    await testModel.trainModel({ useCache: useModelCache })
+  },
 
-    await testModel.trainModel(utterances, useModelCache)
+  async testRun() {
+    await Riddler.init()
     const tests = [
       'are the bikes real?',
-      'Did anyone go to the airport?'
+      'Did anyone go to the airport?',
+      'Do criminals fly there?',
+      'Did he donate something?'
     ]
     tests.map(async (item) => {
-      let result: any = await testModel.predict(item, { maxHits: 5 })
-      const matched = utterances.find((utt: any) => {
-        return (utt.tag === result.tag)
+      let matches: IMatch[] | undefined = await testModel.classify(item, { maxHits: 5 })
+      debug.log('test: ', item)
+      // debug.log('result', matches)
+      // const sources = matches![0].sources
+      matches?.map((match, index) => {
+        match.sources?.map(source => {
+          debug.log('   - ', index, match.pct, '\t', source.text)
+        })
       })
-      debug.log('result', result, matched)
     })
   }
+
 }
 
-Riddler.init()
-
+export { Riddler }

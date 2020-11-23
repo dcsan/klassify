@@ -9,18 +9,35 @@ import * as path from 'path'
 import { ensureDirectory } from './FileUtils'
 // total different categories
 
-interface ITaggedInput {
+export interface ITaggedInput {
   text: string
   tag: string
 }
 
-interface IClassification {
+export interface IClassification {
   input: string
   tag: string
   confidence: number
   found?: ITaggedInput
   others: ITaggedInput[]
 }
+
+export interface IMatch {
+  tag: string
+  confidence: number
+  pct: number
+  sources?: ITaggedInput[]
+}
+
+// export type IMatch = [string, number];
+
+// export interface IMatch {
+//   tag: string
+//   confidence: number
+// }
+// // {
+// //   [string, number]
+// // }
 
 class TfClassifier {
   modelPath: string
@@ -52,13 +69,20 @@ class TfClassifier {
 
   async loadCsvInputs(relPath, basePath = __dirname) {
     this.inputs = await readCsvFile(relPath, basePath)
+    const before = this.inputs.length
+    // filter items without required fields
+    this.inputs = this.inputs.filter(item => item.tag && item.text)
+    const diff = this.inputs.length - before
+    if (diff !== 0) {
+      debug.warn('trimmed some items from inputs', diff)
+    }
   }
 
   // force = ignore cached model
   async trainModel(opts: {
     inputs?: ITaggedInput[],
     useCache: boolean
-  }) {
+  }): Promise<tf.Sequential | tf.LayersModel> {
 
     const inputs: ITaggedInput[] = opts.inputs || this.inputs!
     if (!inputs) {
@@ -97,7 +121,7 @@ class TfClassifier {
     );
     const yTrain = tf.tensor2d(labels)
     const inputShape = [xTrain.shape[1]]
-    const model = tf.sequential();
+    const model: tf.Sequential = tf.sequential();
 
     // debug.log('labels', labels)
     // debug.log('yTrain', {
@@ -162,8 +186,8 @@ class TfClassifier {
 
   async classify(
     input: string,
-    opts: { maxHits: number } = { maxHits: 10 }): Promise<IClassification | undefined> {
-    const maxHits = opts.maxHits || 10
+    opts: { maxHits: number } = { maxHits: 10 }): Promise<IMatch[] | undefined> {
+    // const maxHits = opts.maxHits || 10
     input = input.trim()
     if (!input) {
       debug.warn('empty input to predictor')
@@ -171,46 +195,54 @@ class TfClassifier {
     }
     const xPredict = await this.encodeData([{ text: input }])
     const tensor = await this.model.predict(xPredict);
-    const pdata: number[] = await tensor.data()
+    const confidenceList: number[] = await tensor.data()
 
     // const pcts = pdata.map(p => Math.round(p * 100))
     // find most confident item
-    const confidence = Math.max(...pdata)
-    const tagIndex = pdata.indexOf(confidence)
+    const maxConfidence = Math.max(...confidenceList)
+    const tagIndex = confidenceList.indexOf(maxConfidence)
     const tag = this.uniqueTags[tagIndex]
 
-    // debug.log('prediction', {
-    //   pdata,
-    //   confidence,
+    // debug.log('classification', {
+    //   confidenceList,
+    //   maxConfidence,
     //   tagIndex,
     //   tag
     // })
 
     // const vals = pcts.join(',')
-    const others: any = this.uniqueTags.map((tagName, index) => {
-      const confidence = pdata[index]
-      return [tagName, confidence]
+    const matches: IMatch[] = this.uniqueTags.map((tag, index) => {
+      const confidence = confidenceList[index]
+      return {
+        confidence,
+        tag,
+        pct: Math.round(confidence * 100)
+      }
     })
 
-    const sortedHits = others.sort((a, b) => {
-      return (a[1] < b[1] ? 1 : -1)
+    const sortedMatches = matches.sort((a, b) => {
+      return (a.confidence < b.confidence ? 1 : -1)
     })
 
-    // original input item with any other fields
-    const found = this.inputs?.find(item => item.tag === tag)
-
-    const result: IClassification = {
-      input,
-      found,
-      tag,
-      confidence,
-      others: sortedHits.slice(0, maxHits)
-    }
-
-    debug.log('result', result)
-    return result
+    const topMatches = sortedMatches.slice(0, opts.maxHits)
+    const expandedMatches = this.expandMatches(topMatches)
+    // debug.log('expandedMatches', expandedMatches)
+    return expandedMatches
 
   };
+
+  expandMatches(matches: IMatch[]) {
+    const expanded = matches.map(m => {
+      m.sources = this.matchingSources(m.tag)
+      return m
+    })
+    return expanded
+  }
+
+  // find all original training sentences for that tag
+  matchingSources(tag: string): ITaggedInput[] | undefined {
+    return this.inputs?.filter(item => item.tag === tag)
+  }
 
 }
 

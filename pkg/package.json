@@ -1,11 +1,11 @@
 {
   "name": "@dcsan/klassify",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "javascript classifier options",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "DEBUG=* DEBUG_LEVEL=info ts-node src/TestRunner.ts",
+    "test": "DEBUG=*,-tensorflow DEBUG_LEVEL=info ts-node src/TestRunner.ts",
     "testwatch": "DEBUG=* DEBUG_LEVEL=info ts-node-dev src/TestRunner.ts",
     "build": "tsc",
     "prepare": "npm run build"

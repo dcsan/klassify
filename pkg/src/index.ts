@@ -1,4 +1,4 @@
 // export * from "./Klassify";
 
-export { TfClassifier } from './TfClassifier'
+export { TfClassifier, ITaggedInput, IMatch } from './TfClassifier'
 export { readCsvFile } from './FileUtils'
